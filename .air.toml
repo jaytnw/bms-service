@@ -1,0 +1,9 @@
+[build]
+cmd = "go build -o ./tmp/main ./cmd/server/main.go"
+bin = "tmp/main"
+
+
+[watcher]
+  include = ["internal", "cmd",".env"]
+  exclude = ["tmp", "vendor", "migrations"]
+  extensions = ["go"]
