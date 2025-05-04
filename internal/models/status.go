@@ -25,9 +25,9 @@ type WasherStatusHistory struct {
 }
 
 type DormStatusReport struct {
-	DormID   string                `json:"dorm_id"`
-	DormName string                `json:"dorm_name"`
-	Machines []WasherStatusHistory `json:"machines"`
+	DormID   string                 `json:"dorm_id"`
+	DormName string                 `json:"dorm_name"`
+	Machines []*WasherStatusHistory `json:"machines"`
 }
 
 func ToStatusDTO(s Status) StatusDTO {

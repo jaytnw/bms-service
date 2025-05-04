@@ -151,36 +151,31 @@ func (s *statusService) GetStatusHistoryByWasherID(ctx context.Context, washerID
 // }
 
 func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormStatusReport, error) {
-
 	totalStart := time.Now()
 	const cacheDuration = 24 * time.Hour
 
-	// ⏱️ Step 1: ลองดึง machines จาก Redis
+	// Step 1: Load washing machines from Redis or API
 	var machines []WashingMachine
 	const cacheKey = "external_api:washing_machines"
-	cached, err := s.redisClient.Get(ctx, cacheKey).Result()
-	if err == nil {
+	if cached, err := s.redisClient.Get(ctx, cacheKey).Result(); err == nil {
 		if err := json.Unmarshal([]byte(cached), &machines); err == nil {
 			log.Println("⚡ Loaded WashingMachines from Redis")
 		}
 	}
-
-	// 🔁 ถ้า Redis ไม่มี หรือ error ให้เรียก API แล้ว cache ใหม่
 	if len(machines) == 0 {
-		machines, err = s.externalAPI.FetchWashingMachines()
+		apiMachines, err := s.externalAPI.FetchWashingMachines()
 		if err != nil {
 			return nil, apperr.New("API_ERROR", "Failed to fetch machines", 500, err)
 		}
-
-		bytes, _ := json.Marshal(machines)
-
-		s.redisClient.Set(ctx, cacheKey, bytes, cacheDuration)
-		log.Println("✅ Cached WashingMachines to Redis")
+		machines = apiMachines
+		if bytes, err := json.Marshal(machines); err == nil {
+			s.redisClient.Set(ctx, cacheKey, bytes, cacheDuration)
+			log.Println("✅ Cached WashingMachines to Redis")
+		}
 	}
-
 	log.Printf("📡 FetchWashingMachines took: %v", time.Since(totalStart))
 
-	// ⏱️ Step 2: Load history
+	// Step 2: Prepare washerIDs and machineMap
 	start := time.Now()
 	washerIDs := make([]string, 0, len(machines))
 	machineMap := make(map[string]WashingMachine)
@@ -193,9 +188,25 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 	if err != nil {
 		return nil, apperr.New("DB_ERROR", "Failed to fetch histories", 500, err)
 	}
+	log.Printf("📦 DB Fetch took: %v", time.Since(start))
 
-	// ✏️ Step 3: Group & Merge
+	// Step 3: Prepare dorm order (from machines) and group history
+	start = time.Now()
 	grouped := make(map[string]*models.DormStatusReport)
+	washerHistoryMap := make(map[string]*models.WasherStatusHistory)
+
+	dormOrder := []string{}
+	seenDorms := map[string]bool{}
+
+	// 🔁 สร้างลำดับหอจาก machines โดยตรง
+	for _, m := range machines {
+		if !seenDorms[m.IDDorm] {
+			dormOrder = append(dormOrder, m.IDDorm)
+			seenDorms[m.IDDorm] = true
+		}
+	}
+
+	// 🔁 รวมสถานะต่อเครื่อง
 	for _, h := range histories {
 		m := machineMap[h.WasherID]
 		report, ok := grouped[m.IDDorm]
@@ -203,40 +214,35 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 			report = &models.DormStatusReport{
 				DormID:   m.IDDorm,
 				DormName: m.DormName,
-				Machines: []models.WasherStatusHistory{},
+				Machines: []*models.WasherStatusHistory{},
 			}
 			grouped[m.IDDorm] = report
 		}
 
-		found := false
-		for i := range report.Machines {
-			if report.Machines[i].WasherID == h.WasherID {
-				report.Machines[i].History = append(report.Machines[i].History, models.ToStatusDTO(h))
-				found = true
-				break
-			}
-		}
-		if !found {
-			report.Machines = append(report.Machines, models.WasherStatusHistory{
+		key := m.IDDorm + "::" + h.WasherID
+		machineHistory, ok := washerHistoryMap[key]
+		if !ok {
+			machineHistory = &models.WasherStatusHistory{
 				WasherID: h.WasherID,
-				History:  []models.StatusDTO{models.ToStatusDTO(h)},
-			})
-		}
-	}
-	log.Printf("📦 Grouping + History took: %v", time.Since(start))
-
-	start = time.Now()
-	result := make([]models.DormStatusReport, 0, len(machines))
-	added := make(map[string]bool)
-	for _, m := range machines {
-		if report, ok := grouped[m.IDDorm]; ok {
-			if !added[m.IDDorm] {
-				result = append(result, *report)
-				added[m.IDDorm] = true
+				History:  []models.StatusDTO{},
 			}
+			report.Machines = append(report.Machines, machineHistory)
+			washerHistoryMap[key] = machineHistory
+		}
+
+		machineHistory.History = append(machineHistory.History, models.ToStatusDTO(h))
+	}
+	log.Printf("🔀 Grouping took: %v", time.Since(start))
+
+	// Step 4: Convert to slice and preserve dorm order
+	start = time.Now()
+	result := make([]models.DormStatusReport, 0, len(dormOrder))
+	for _, dormID := range dormOrder {
+		if report, ok := grouped[dormID]; ok {
+			result = append(result, *report)
 		}
 	}
-	log.Printf("📊 Convert map to slice took: %v", time.Since(start))
+	log.Printf("📊 Final conversion took: %v", time.Since(start))
 	log.Printf("✅ Total GetDormStatusReport took: %v", time.Since(totalStart))
 
 	return result, nil
