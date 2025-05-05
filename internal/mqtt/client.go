@@ -19,9 +19,9 @@ type Client interface {
 
 // mqttClient implements the Client interface
 type mqttClient struct {
-	client       mqttlib.Client
+	client        mqttlib.Client
 	subscriptions map[string]MessageHandler
-	mu           sync.Mutex
+	mu            sync.Mutex
 }
 
 // NewClient initializes and connects an MQTT client with reconnect support
@@ -29,7 +29,6 @@ func NewClient(brokerURL, clientID, username, password string) Client {
 	m := &mqttClient{
 		subscriptions: make(map[string]MessageHandler),
 	}
-
 	opts := mqttlib.NewClientOptions().
 		AddBroker(brokerURL).
 		SetClientID(clientID).
@@ -38,12 +37,11 @@ func NewClient(brokerURL, clientID, username, password string) Client {
 		SetAutoReconnect(true).
 		SetConnectRetry(true).
 		SetConnectRetryInterval(3 * time.Second).
-		SetOnConnectionLost(func(c mqttlib.Client, err error) {
+		SetConnectionLostHandler(func(c mqttlib.Client, err error) {
 			log.Printf("⚠️ MQTT connection lost: %v", err)
 		}).
 		SetOnConnectHandler(func(c mqttlib.Client) {
-			log.Println("🔁 MQTT reconnected. Resubscribing...")
-			m.resubscribeAll()
+			log.Println("🔁 MQTT reconnected")
 		})
 
 	m.client = mqttlib.NewClient(opts)
