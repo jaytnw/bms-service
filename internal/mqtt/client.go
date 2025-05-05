@@ -36,13 +36,17 @@ func NewClient(brokerURL, clientID, username, password string) Client {
 		SetPassword(password).
 		SetAutoReconnect(true).
 		SetConnectRetry(true).
+        SetKeepAlive(30 * time.Second).
+        SetPingTimeout(10 * time.Second).
 		SetConnectRetryInterval(3 * time.Second).
 		SetConnectionLostHandler(func(c mqttlib.Client, err error) {
 			log.Printf("⚠️ MQTT connection lost: %v", err)
 		}).
 		SetOnConnectHandler(func(c mqttlib.Client) {
 			log.Println("🔁 MQTT reconnected")
+			m.resubscribeAll()
 		})
+		
 
 	m.client = mqttlib.NewClient(opts)
 	if token := m.client.Connect(); token.Wait() && token.Error() != nil {

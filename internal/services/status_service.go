@@ -151,7 +151,7 @@ func (s *statusService) GetStatusHistoryByWasherID(ctx context.Context, washerID
 // }
 
 func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormStatusReport, error) {
-	totalStart := time.Now()
+	// totalStart := time.Now()
 	const cacheDuration = 24 * time.Hour
 
 	// Step 1: Load washing machines from Redis or API
@@ -170,13 +170,13 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 		machines = apiMachines
 		if bytes, err := json.Marshal(machines); err == nil {
 			s.redisClient.Set(ctx, cacheKey, bytes, cacheDuration)
-			log.Println("✅ Cached WashingMachines to Redis")
+			// log.Println("✅ Cached WashingMachines to Redis")
 		}
 	}
-	log.Printf("📡 FetchWashingMachines took: %v", time.Since(totalStart))
+	// log.Printf("📡 FetchWashingMachines took: %v", time.Since(totalStart))
 
 	// Step 2: Prepare washerIDs and machineMap
-	start := time.Now()
+	// start := time.Now()
 	washerIDs := make([]string, 0, len(machines))
 	machineMap := make(map[string]WashingMachine)
 	for _, m := range machines {
@@ -188,7 +188,7 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 	if err != nil {
 		return nil, apperr.New("DB_ERROR", "Failed to fetch histories", 500, err)
 	}
-	log.Printf("📦 DB Fetch took: %v", time.Since(start))
+	// log.Printf("📦 DB Fetch took: %v", time.Since(start))
 
 	// Step 3: Prepare dorm order (from machines) and group history
 	start = time.Now()
@@ -232,7 +232,7 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 
 		machineHistory.History = append(machineHistory.History, models.ToStatusDTO(h))
 	}
-	log.Printf("🔀 Grouping took: %v", time.Since(start))
+	// log.Printf("🔀 Grouping took: %v", time.Since(start))
 
 	// Step 4: Convert to slice and preserve dorm order
 	start = time.Now()
@@ -242,8 +242,8 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 			result = append(result, *report)
 		}
 	}
-	log.Printf("📊 Final conversion took: %v", time.Since(start))
-	log.Printf("✅ Total GetDormStatusReport took: %v", time.Since(totalStart))
+	// log.Printf("📊 Final conversion took: %v", time.Since(start))
+	// log.Printf("✅ Total GetDormStatusReport took: %v", time.Since(totalStart))
 
 	return result, nil
 }
