@@ -70,7 +70,7 @@ func main() {
 
 	// MQTT Subscribe
 	err = mqttClient.Subscribe("washingMachine/+/+/status", func(topic string, payload []byte) {
-		// log.Printf("📥 Topic: %s | Payload: %s", topic, string(payload))
+		log.Printf("📥 Topic: %s | Payload: %s", topic, string(payload))
 		statusService.HandleMQTTStatusUpdate(topic, payload)
 	})
 
