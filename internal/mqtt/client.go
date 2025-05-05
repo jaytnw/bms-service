@@ -9,7 +9,7 @@ import (
 )
 
 // MessageHandler defines the signature for handling incoming messages
-type MessageHandler func(topic string, payload []byte)
+type MessageHandler func(topic string, payload []byte, retained bool)
 
 // Client defines the interface for MQTT operations
 type Client interface {
@@ -36,8 +36,8 @@ func NewClient(brokerURL, clientID, username, password string) Client {
 		SetPassword(password).
 		SetAutoReconnect(true).
 		SetConnectRetry(true).
-        SetKeepAlive(30 * time.Second).
-        SetPingTimeout(10 * time.Second).
+		SetKeepAlive(30 * time.Second).
+		SetPingTimeout(10 * time.Second).
 		SetConnectRetryInterval(3 * time.Second).
 		SetConnectionLostHandler(func(c mqttlib.Client, err error) {
 			log.Printf("⚠️ MQTT connection lost: %v", err)
@@ -46,7 +46,6 @@ func NewClient(brokerURL, clientID, username, password string) Client {
 			log.Println("🔁 MQTT reconnected")
 			m.resubscribeAll()
 		})
-		
 
 	m.client = mqttlib.NewClient(opts)
 	if token := m.client.Connect(); token.Wait() && token.Error() != nil {
@@ -77,7 +76,6 @@ func (m *mqttClient) Subscribe(topic string, handler MessageHandler) error {
 	return token.Error()
 }
 
-
 // resubscribeAll resubscribes to all previous topics on reconnect
 func (m *mqttClient) resubscribeAll() {
 	m.mu.Lock()
@@ -86,8 +84,9 @@ func (m *mqttClient) resubscribeAll() {
 	for topic, handler := range m.subscriptions {
 		log.Printf("🔁 Resubscribing to topic: %s", topic)
 		token := m.client.Subscribe(topic, 1, func(_ mqttlib.Client, msg mqttlib.Message) {
-			handler(msg.Topic(), msg.Payload())
+			handler(msg.Topic(), msg.Payload(), msg.Retained())
 		})
+
 		token.Wait()
 		if err := token.Error(); err != nil {
 			log.Printf("❌ Failed to resubscribe to %s: %v", topic, err)
