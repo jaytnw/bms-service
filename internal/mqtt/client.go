@@ -71,11 +71,12 @@ func (m *mqttClient) Subscribe(topic string, handler MessageHandler) error {
 	m.mu.Unlock()
 
 	token := m.client.Subscribe(topic, 1, func(_ mqttlib.Client, msg mqttlib.Message) {
-		handler(msg.Topic(), msg.Payload())
+		handler(msg.Topic(), msg.Payload(), msg.Retained())
 	})
 	token.WaitTimeout(5 * time.Second)
 	return token.Error()
 }
+
 
 // resubscribeAll resubscribes to all previous topics on reconnect
 func (m *mqttClient) resubscribeAll() {

@@ -75,10 +75,11 @@ func main() {
 	)
 
 	// MQTT Subscribe
-	err = mqttClient.Subscribe("washingMachine/+/+/status", func(topic string, payload []byte) {
-		log.Printf("📥 Topic: %s | Payload: %s", topic, string(payload))
+	err = mqttClient.Subscribe("washingMachine/+/+/status", func(topic string, payload []byte, retained bool) {
+		log.Printf("📥 Topic: %s | Payload: %s | Retained: %v", topic, string(payload), retained)
 		statusService.HandleMQTTStatusUpdate(topic, payload)
 	})
+	
 
 	if err != nil {
 		log.Fatalf("❌ MQTT subscribe failed: %v", err)
