@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"time"
+	"fmt"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
@@ -60,10 +61,15 @@ func main() {
 	app.Use(logger.New())
 	app.Use(pprof.New())
 
+	baseClientID := cfg.MQTTConfig.ClientID
+
+
+	clientID := fmt.Sprintf("%s-%d", baseClientID, time.Now().UnixNano())
+
 	// MQTT Connect
 	mqttClient := mqtt.NewClient(
 		cfg.MQTTConfig.BrokerURL,
-		cfg.MQTTConfig.ClientID,
+		clientID,
 		cfg.MQTTConfig.Username,
 		cfg.MQTTConfig.Password,
 	)

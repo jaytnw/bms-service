@@ -191,7 +191,7 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 	// log.Printf("📦 DB Fetch took: %v", time.Since(start))
 
 	// Step 3: Prepare dorm order (from machines) and group history
-	start = time.Now()
+	// start = time.Now()
 	grouped := make(map[string]*models.DormStatusReport)
 	washerHistoryMap := make(map[string]*models.WasherStatusHistory)
 
@@ -235,7 +235,7 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 	// log.Printf("🔀 Grouping took: %v", time.Since(start))
 
 	// Step 4: Convert to slice and preserve dorm order
-	start = time.Now()
+	// start = time.Now()
 	result := make([]models.DormStatusReport, 0, len(dormOrder))
 	for _, dormID := range dormOrder {
 		if report, ok := grouped[dormID]; ok {
