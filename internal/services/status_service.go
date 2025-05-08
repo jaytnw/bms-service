@@ -159,7 +159,7 @@ func (s *statusService) GetDormStatusReport(ctx context.Context) ([]models.DormS
 	const cacheKey = "external_api:washing_machines"
 	if cached, err := s.redisClient.Get(ctx, cacheKey).Result(); err == nil {
 		if err := json.Unmarshal([]byte(cached), &machines); err == nil {
-			log.Println("⚡ Loaded WashingMachines from Redis")
+			// log.Println("⚡ Loaded WashingMachines from Redis")
 		}
 	}
 	if len(machines) == 0 {
